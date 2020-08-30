@@ -1,76 +1,135 @@
+//Bibliotecas
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/sysinfo.h>
+#include <math.h>
+ //---------------------------------------------------------------------------------------------------
+ // Declaracion estructura de limites
+ struct limit_values{
+   int lower;
+   int upper;
+ };
+
+//Variable global para almacenar el arreglo
 int *arreglo;
+
+//Declaracion de la funcion para ordenar
 void* order(void *param) ;
 
-int cmpfunc (const void * a, const void * b) {
-   return ( *(int*)a - *(int*)b );
+//----------------------------------------------------------------------------------------------------
+//Funciones para encontrar CPUS
+
+int get_ncpus() {
+	// Return processors available
+	return get_nprocs();
 }
 
-int main(int argc, char *argv[]){
 
-    int i;
-    time_t t;
-    pthread_t tid, tid2; /* the thread identifier */
-	pthread_attr_t attr, attr2; /* set of attributes for the thread */
+//------------MAIN---------------------------------------------------------------------------
+int main(){
 
-	if (argc != 2) {
-		fprintf(stderr, "usage: a.out <integer value>\n");
-		/*exit(1);*/
-		return -1;
-	}
-	if (atoi(argv[1]) < 0) {
-		fprintf(stderr, "Argument %d must be non-negative\n", atoi(argv[1]));
-		/*exit(1);*/
-		return -1;
-	}
+  //Declaracion de variables
+  int i;
+  time_t t;
+  pthread_t tid[8]; //Arreglo de 8 porque es el numero maximo de CPus en mi compu
+	pthread_attr_t attr[8];
+  int num_ale = 0;
+  int num_cores = 0;
+  int cores_disp = 0;
+  int lim;
+  int lim_inf;
+  struct limit_values limits[8];
+  int cont = 0;
+  int temp = 0;
 
-    srand((unsigned) time(&t));
-    arreglo =(int*) malloc(atoi(argv[1])* sizeof(int));
-    for(i=0;i<atoi(argv[1]);i++){
-        arreglo[i]=rand()%100;
-        printf("%d\n",arreglo[i]);
+
+  //Preguntar cuantos numeros desea ordenar
+  printf("Cuantos numeros aleatorios deseas ordenar: ");
+  scanf("%d",&num_ale);
+
+  //Encontrar cores disponibles
+  cores_disp =get_ncpus ();
+
+  //Imprimir cores disponibles y preguntar cuantos se desean usar
+  printf("Se encontraron %d cores. Cuantos quieres usar: ",cores_disp);
+  scanf("%d",&num_cores);
+
+  //Llenar el arreglo con numeros aleatorios
+  srand((unsigned) time(&t));
+  arreglo =(int*) malloc(num_ale* sizeof(int));
+  for(i=0;i<num_ale;i++){
+    arreglo[i]=rand()%100;
+    printf("%d\n",arreglo[i]);
+  }
+
+  /*El limite es el parametro que recibo*/
+	lim = num_ale;
+  printf ("Limite: %d\n",lim);
+
+   //Si la division da exacto
+  lim_inf =(lim/num_cores);
+
+
+  //Si la division no da exacto
+  if((lim%num_cores)!=0){
+    printf ("No da exacto \n");
+    lim_inf = (lim/num_cores);
+    lim_inf = lim_inf+1;
+  }
+
+  printf ("Numeros por hilo: %d\n",lim_inf);
+
+  temp = lim_inf;
+  for(int j=0;j<num_cores;j++){
+    limits[j].lower = cont;
+    limits[j].upper = lim_inf-1;
+    cont =lim_inf;
+    lim_inf= lim_inf + temp;
+    if(j==(num_cores-1)){
+      limits[j].upper=lim-1;
     }
+  }
 
-    /*El limite es el parametro que recibo*/
-	int lim = atoi(argv[1]);
-    int lim1[]= {0,(lim/2)-1};
-    int lim2[]= {lim/2,lim-1};
-	/* get the default attributes */
-	pthread_attr_init(&attr);
-	/* get the default attributes */
-	pthread_attr_init(&attr2);
 
-	/* create the thread */
-	pthread_create(&tid, &attr, order, lim1);
+  //Crear los threads
+  for(int i = 0;i<num_cores;i++){
+    pthread_attr_init(&attr[i]);
+	  pthread_create(&tid[i], &attr[i], order, &limits[i]);
+  }
+  pthread_join(tid[i], NULL);
 
-	/* create the thread */
-	pthread_create(&tid2, &attr2, order, lim2);
 
-	/* now wait for the thread to exit */
-	pthread_join(tid2, NULL);
+
+  //Imprimir el arreglo ordenado
+  printf("Elementos ordenados\n");
+	for(int k = 0;k<lim;k++){
+    printf("%d\n",arreglo[k]);
+	}
 }
 
+
+//-------------------------------------------------------------------------------------------------------
 void* order(void *param) {
-    int *par = (int *)param;
-    int lower = par[0];
-    int upper = par[1];
-    int nitems = upper - lower;
-    int values[nitems];
-    int j= 0;
+    struct limit_values *par = (struct limit_values*)param;
+    int lower = par->lower;
+    int upper = par->upper;
+    int temp = 0;
 
-    for (int i = lower; i<=upper;i++)
-    {
-
-        values[j]=arreglo[i];
-        j++;
-    }
-
-	qsort(values, nitems+1, sizeof(int), cmpfunc);
-	printf("Elementos ordenados\n");
-	for(int k = 0;k<=nitems;k++){
-        printf("%d\n",values[k]);
-	}
+    printf("El lower de este hilo es: %d\n",lower);
+    printf("El upper de este hilo es: %d\n",upper);
+    //Ordenador por metodo de burbuja
+    for (int i = lower; i <=upper ;i++)
+      {
+        for (int j = lower; j<upper ; j++)
+          {
+            if(arreglo[i]<arreglo[j]){
+              temp = arreglo[j];
+              arreglo[j] = arreglo[i];
+              arreglo[i] = temp;
+            }
+          }
+      }
 	pthread_exit(0);
 }
