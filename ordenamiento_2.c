@@ -20,6 +20,11 @@ int *arreglo;
 void* order(void *param) ;
 
 //----------------------------------------------------------------------------------------------------
+//Funcion para QSort
+
+int cmpfunc (const void * a, const void * b) {
+   return ( *(int*)a - *(int*)b );
+}
 //Funciones para encontrar CPUS
 
 int get_ncpus() {
@@ -44,7 +49,7 @@ int main(){
   struct limit_values limits[8];
   int cont = 0;
   int temp = 0;
-  clock_t t1, t2;
+  clock_t t1, t2, t3;
 
   //Preguntar cuantos numeros desea ordenar
   printf("Cuantos numeros aleatorios deseas ordenar: ");
@@ -65,6 +70,7 @@ int main(){
   //Llenar el arreglo con numeros aleatorios
   srand((unsigned) time(&t));
   arreglo =(int*) malloc(num_ale* sizeof(int));
+  printf("\n\n Los numeros aleatorios son: \n");
   for(i=0;i<num_ale;i++){
     arreglo[i]=rand()%10000;
     printf("%d\n",arreglo[i]);
@@ -72,7 +78,6 @@ int main(){
 
   /*El limite es el parametro que recibo*/
 	lim = num_ale;
-  printf ("Limite: %d\n",lim);
 
    //Si la division da exacto
   lim_inf =(lim/num_cores);
@@ -85,8 +90,7 @@ int main(){
     lim_inf = lim_inf+1;
   }
 
-  printf ("Numeros por hilo: %d\n",lim_inf);
-
+  //Asignar limites
   temp = lim_inf;
   for(int j=0;j<num_cores;j++){
     limits[j].lower = cont;
@@ -107,10 +111,23 @@ int main(){
 	  pthread_create(&tid[i], &attr[i], order, &limits[i]);
     pthread_join(tid[i], NULL);
   }
+  //Parar  cronometro de hilos
+  t2 = clock();
+
+  //Ordenamiento final
+  qsort(arreglo,lim, sizeof(int), cmpfunc);
 
   //parar cronometro
-  t2 = clock();
-  printf("\n\n\n\n Tiempo que se tardo en ejecutar: %.5f\n",(t2 - t1) /(double)CLOCKS_PER_SEC);
+  t3 = clock();
+
+  //Ordenar arreglo previamente ordenado por hilos
+  printf("\n\nArreglo ordenado completamente\n\n");
+  for(int l =0; l<lim; l++){
+    printf ("Valor %d: %d\n",(l+1),arreglo[l]);
+  }
+  printf("\n\n\n\n Tiempo que se tardo en ejecutar los hilos: %.5f\n",(t2 - t1) /(double)CLOCKS_PER_SEC);
+  printf("\n\n Tiempo que se tardo en ejecutar el tercer ordenamiento: %.5f\n",(t3 - t2) /(double)CLOCKS_PER_SEC);
+  printf("\n\n Tiempo que se tardo en ejecutar todo el ordenamiento: %.5f\n",(t3 - t1) /(double)CLOCKS_PER_SEC);
 }
 
 
